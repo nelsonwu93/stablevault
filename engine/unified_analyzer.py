@@ -164,7 +164,14 @@ def score_fundamental(fund_code: str) -> Dict:
     """
     计算基金基本面评分 F_score ∈ [-2, +2]
     整合 micro_analysis 的持仓分析 + 经理分析 + 风格分析
+    海外部署时 API 可能不可用，全部异常保护。
     """
+    _fallback = {
+        "score": 0.0, "components": {},
+        "label": _score_label(0), "bar_pct": _score_to_pct(0),
+        "holdings_summary": "基本面数据暂不可用（海外服务器）",
+        "style_summary": "", "manager_summary": "", "raw": {},
+    }
     try:
         from engine.micro_analysis import (
             analyze_holdings_fundamentals,
@@ -174,19 +181,14 @@ def score_fundamental(fund_code: str) -> Dict:
         )
     except ImportError:
         logger.warning("micro_analysis 模块不可用，基本面评分设为 0")
-        return {
-            "score": 0.0,
-            "components": {},
-            "label": _score_label(0),
-            "bar_pct": _score_to_pct(0),
-            "holdings_summary": "基本面数据不可用",
-            "style_summary": "",
-            "manager_summary": "",
-            "raw": {},
-        }
+        return _fallback
 
-    # 运行子分析
-    holdings_result = analyze_holdings_fundamentals(fund_code)
+    # 运行子分析（每个子分析内部已有异常保护）
+    try:
+        holdings_result = analyze_holdings_fundamentals(fund_code)
+    except Exception as e:
+        logger.warning(f"基本面分析失败 {fund_code}: {e}")
+        return _fallback
     changes_result = analyze_position_changes(fund_code)
     style_result = analyze_fund_style(fund_code, holdings_result)
     manager_result = analyze_fund_manager(fund_code)
