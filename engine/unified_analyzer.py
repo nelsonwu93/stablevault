@@ -160,39 +160,8 @@ class FundAnalysisReport:
 # 基本面评分（F_score）
 # ══════════════════════════════════════════════
 
-def score_fundamental(fund_code: str) -> Dict:
-    """
-    计算基金基本面评分 F_score ∈ [-2, +2]
-    整合 micro_analysis 的持仓分析 + 经理分析 + 风格分析
-    海外部署时 API 可能不可用，全部异常保护。
-    """
-    _fallback = {
-        "score": 0.0, "components": {},
-        "label": _score_label(0), "bar_pct": _score_to_pct(0),
-        "holdings_summary": "基本面数据暂不可用（海外服务器）",
-        "style_summary": "", "manager_summary": "", "raw": {},
-    }
-    try:
-        from engine.micro_analysis import (
-            analyze_holdings_fundamentals,
-            analyze_position_changes,
-            analyze_fund_style,
-            analyze_fund_manager,
-        )
-    except ImportError:
-        logger.warning("micro_analysis 模块不可用，基本面评分设为 0")
-        return _fallback
-
-    # 运行子分析（每个子分析内部已有异常保护）
-    try:
-        holdings_result = analyze_holdings_fundamentals(fund_code)
-    except Exception as e:
-        logger.warning(f"基本面分析失败 {fund_code}: {e}")
-        return _fallback
-    changes_result = analyze_position_changes(fund_code)
-    style_result = analyze_fund_style(fund_code, holdings_result)
-    manager_result = analyze_fund_manager(fund_code)
-
+def _score_from_data(holdings_result, changes_result, style_result, manager_result) -> Dict:
+    """根据基本面数据计算 F_score（API 数据或缓存数据均可）"""
     components = {}
 
     # F1: 持仓估值 (加权平均PE)
@@ -224,7 +193,7 @@ def score_fundamental(fund_code: str) -> Dict:
     elif top3_pct > 15:
         f3 = 0.2
     else:
-        f3 = 0.0  # 过于分散也不一定好
+        f3 = 0.0
     components["集中度"] = round(f3, 2)
 
     # F4: 基金经理能力
@@ -242,7 +211,6 @@ def score_fundamental(fund_code: str) -> Dict:
         f5 = 0.0
     components["持仓稳定"] = round(f5, 2)
 
-    # 等权平均
     if components:
         f_raw = sum(components.values()) / len(components)
     else:
@@ -264,6 +232,61 @@ def score_fundamental(fund_code: str) -> Dict:
             "style": style_result,
             "manager": manager_result,
         },
+    }
+
+
+def _score_from_cache(fund_code: str) -> Dict:
+    """从静态缓存获取基本面评分（海外部署时使用）"""
+    try:
+        from data.fundamental_cache import FUND_FUNDAMENTAL_CACHE
+        cached = FUND_FUNDAMENTAL_CACHE.get(fund_code)
+        if cached:
+            logger.info(f"使用缓存基本面数据: {fund_code}")
+            return _score_from_data(
+                cached["holdings"], cached["changes"],
+                cached["style"], cached["manager"],
+            )
+    except Exception as e:
+        logger.warning(f"缓存读取失败 {fund_code}: {e}")
+    return None
+
+
+def score_fundamental(fund_code: str) -> Dict:
+    """
+    计算基金基本面评分 F_score ∈ [-2, +2]
+    优先在线 API → 失败则用静态缓存 → 都不行返回默认值
+    """
+    # ① 尝试在线 API
+    try:
+        from engine.micro_analysis import (
+            analyze_holdings_fundamentals,
+            analyze_position_changes,
+            analyze_fund_style,
+            analyze_fund_manager,
+        )
+        holdings_result = analyze_holdings_fundamentals(fund_code)
+        # 检查 API 是否真正返回了有效数据
+        if holdings_result.get("holdings") and len(holdings_result["holdings"]) > 0:
+            changes_result = analyze_position_changes(fund_code)
+            style_result = analyze_fund_style(fund_code, holdings_result)
+            manager_result = analyze_fund_manager(fund_code)
+            result = _score_from_data(holdings_result, changes_result, style_result, manager_result)
+            if result["components"]:
+                return result
+    except Exception as e:
+        logger.warning(f"在线基本面分析失败 {fund_code}: {e}")
+
+    # ② 使用静态缓存（海外部署的主要路径）
+    cached_result = _score_from_cache(fund_code)
+    if cached_result:
+        return cached_result
+
+    # ③ 兜底默认值
+    return {
+        "score": 0.0, "components": {},
+        "label": _score_label(0), "bar_pct": _score_to_pct(0),
+        "holdings_summary": "基本面数据暂不可用",
+        "style_summary": "", "manager_summary": "", "raw": {},
     }
 
 

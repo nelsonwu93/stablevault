@@ -2080,12 +2080,10 @@ def render_history_tab():
 # ══════════════════════════════════════════════
 
 @st.cache_data(ttl=900)
-def _run_unified_analysis(run_fundamental: bool = False):
+def _run_unified_analysis(run_fundamental: bool = True):
     """运行统一决策引擎，返回 (reports, summary, market_data, regime_name, regime_cfg)
 
-    两阶段加载策略：
-      Phase 1 (run_fundamental=False): 快速加载，仅宏观+行业+技术面，<10秒
-      Phase 2 (run_fundamental=True):  完整分析，含基本面API调用，约30-60秒
+    yfinance 全球市场数据 (~2s) + 基本面缓存兜底 → 总体 <15s
     """
     # 加载市场数据
     market_data = load_market_snapshot()
@@ -2315,15 +2313,9 @@ def _check_login():
 # ══════════════════════════════════════════════
 
 def main():
-    # ── 两阶段加载：先快速显示(无基本面)，用户可手动触发完整分析 ──
-    use_fundamental = st.session_state.get("_full_analysis", False)
-
-    if use_fundamental:
-        with st.spinner("正在运行完整四维决策分析（含基本面）...预计30-60秒"):
-            reports, summary, market_data, regime_name, regime_cfg = _run_unified_analysis(run_fundamental=True)
-    else:
-        with st.spinner("正在加载决策面板..."):
-            reports, summary, market_data, regime_name, regime_cfg = _run_unified_analysis(run_fundamental=False)
+    # ── 默认包含基本面（有缓存兜底，不会卡）──
+    with st.spinner("正在加载四维决策分析..."):
+        reports, summary, market_data, regime_name, regime_cfg = _run_unified_analysis(run_fundamental=True)
 
     # ── 渲染侧边栏导航 ──
     _render_nav_sidebar(regime_name=regime_name, regime_cfg=regime_cfg)
