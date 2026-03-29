@@ -28,10 +28,20 @@ except ImportError:
     ak = None
     _AK_AVAILABLE = False
 
+# yfinance：海外服务器（如 Streamlit Cloud）的首选数据源
+try:
+    import yfinance as yf
+    _YF_AVAILABLE = True
+except ImportError:
+    yf = None
+    _YF_AVAILABLE = False
+
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 if _AK_AVAILABLE:
     logger.info("AKShare 已加载，将用于美债/PMI/北向资金补充数据")
+if _YF_AVAILABLE:
+    logger.info("yfinance 已加载，海外服务器将优先使用 Yahoo Finance")
 
 # ══════════════════════════════════════════════
 # 公共 Headers
@@ -118,6 +128,17 @@ def get_global_quote(symbol: str) -> Dict:
 
 def _usdcny_multi() -> Dict:
     """美元/人民币汇率，多源获取（周末也可用）"""
+    # ⓪ yfinance 快速通道
+    if _YF_AVAILABLE:
+        try:
+            t = yf.Ticker("USDCNY=X")
+            price = t.fast_info.last_price
+            if price and 5 < price < 10:
+                return {"symbol": "USDCNY=X", "price": round(price, 4),
+                        "change_pct": 0, "name": "美元/人民币", "source": "yfinance"}
+        except Exception as e:
+            logger.warning(f"yfinance USDCNY: {e}")
+
     # ① 新浪 fx_usdcny
     r = _sina_quote("USDCNY=X")
     if r.get("price") and r["price"] > 5:
@@ -169,9 +190,25 @@ def _usdcny_multi() -> Dict:
 
 def _tnx_em() -> Dict:
     """
-    获取美国10年期国债收益率（东方财富）
-    东方财富可以访问美国国债数据，在国内可用
+    获取美国10年期国债收益率
+    优先 yfinance（海外快），备用东方财富（国内可用）
     """
+    # ⓪ yfinance 快速通道
+    if _YF_AVAILABLE:
+        try:
+            t = yf.Ticker("^TNX")
+            price = t.fast_info.last_price
+            prev = t.fast_info.previous_close
+            if price and 0.1 < price < 20:
+                chg = ((price - prev) / prev * 100) if prev and prev > 0 else 0.0
+                return {
+                    "symbol": "^TNX", "price": round(price, 3),
+                    "change_pct": round(chg, 2), "name": "美国10年国债",
+                    "source": "yfinance",
+                }
+        except Exception as e:
+            logger.warning(f"yfinance ^TNX: {e}")
+
     # 东方财富行情接口，美国10年期国债
     candidates = [
         # secid, f43_divisor  —  f43 有时是 *1000 的整数
@@ -417,9 +454,77 @@ def _tencent_quote(symbol: str) -> Dict:
     return {"symbol": symbol, "price": None, "source": "qt_error"}
 
 
+def _yf_batch_global(macro_indicators: Dict) -> Dict:
+    """
+    使用 yfinance 批量获取全球宏观指标（海外服务器首选，通常 1-2 秒完成）。
+    Yahoo Finance 符号映射：
+      ^IXIC → 纳斯达克, ^GSPC → 标普500, NVDA, USDCNY=X, ^TNX, GC=F, CL=F, LIT
+    """
+    if not _YF_AVAILABLE:
+        return {}
+
+    # 直接用 config 里的 Yahoo Finance 符号
+    yf_syms = []
+    sym_to_key = {}
+    for key, cfg in macro_indicators.items():
+        sym = cfg["symbol"]
+        yf_syms.append(sym)
+        sym_to_key[sym] = key
+
+    try:
+        # yf.download 一次请求所有符号，非常快
+        tickers = yf.Tickers(" ".join(yf_syms))
+        results = {}
+        for sym in yf_syms:
+            key = sym_to_key[sym]
+            cfg = macro_indicators[key]
+            try:
+                ticker = tickers.tickers.get(sym)
+                if ticker is None:
+                    continue
+                info = ticker.fast_info
+                price = getattr(info, 'last_price', None)
+                prev = getattr(info, 'previous_close', None)
+                if price and price > 0:
+                    change_pct = ((price - prev) / prev * 100) if prev and prev > 0 else 0.0
+                    results[key] = {
+                        "symbol": sym,
+                        "price": round(price, 4),
+                        "prev_close": round(prev, 4) if prev else None,
+                        "change_pct": round(change_pct, 2),
+                        "label": cfg["label"],
+                        "unit": cfg["unit"],
+                        "name": cfg["label"],
+                        "source": "yfinance",
+                    }
+            except Exception as e:
+                logger.warning(f"yfinance {sym}: {e}")
+        if results:
+            logger.info(f"yfinance 成功获取 {len(results)}/{len(yf_syms)} 个指标")
+        return results
+    except Exception as e:
+        logger.warning(f"yfinance 批量获取失败: {e}")
+        return {}
+
+
 def get_all_global_macro(macro_indicators: Dict) -> Dict:
-    """批量获取全球宏观指标（一次请求多个符号，减少延迟）"""
-    # 合并新浪符号，批量请求
+    """
+    批量获取全球宏观指标。
+    优先级：yfinance（海外快） → 新浪财经批量（国内快） → 逐个 fallback
+    """
+    # ① 海外服务器优先使用 yfinance（通常 1-2 秒拿到全部数据）
+    results = _yf_batch_global(macro_indicators)
+    if len(results) >= len(macro_indicators) * 0.6:
+        # yfinance 拿到大部分数据，补充缺失的
+        for key, cfg in macro_indicators.items():
+            if key not in results:
+                r = get_global_quote(cfg["symbol"])
+                r["label"] = cfg["label"]
+                r["unit"] = cfg["unit"]
+                results[key] = r
+        return results
+
+    # ② 国内服务器：合并新浪符号，批量请求
     sina_syms = []
     key_map = {}
     for key, cfg in macro_indicators.items():
@@ -433,8 +538,9 @@ def get_all_global_macro(macro_indicators: Dict) -> Dict:
     if sina_syms:
         batch_results = _sina_batch(sina_syms)
 
-    results = {}
     for key, cfg in macro_indicators.items():
+        if key in results:
+            continue  # 已被 yfinance 填充
         sym = cfg["symbol"]
         sina_sym = _SINA_MAP.get(sym)
 
@@ -444,7 +550,6 @@ def get_all_global_macro(macro_indicators: Dict) -> Dict:
             r["unit"] = cfg["unit"]
             results[key] = r
         else:
-            # 逐个 fallback
             r = get_global_quote(sym)
             r["label"] = cfg["label"]
             r["unit"] = cfg["unit"]
