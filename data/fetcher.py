@@ -138,7 +138,7 @@ def _usdcny_multi() -> Dict:
                 "ut": "fa5fd1943c7b386f172d6893dbfba10b",
                 "_": int(time.time() * 1000),
             }
-            resp = requests.get(url, params=params, headers=_EM_HEADERS, timeout=8)
+            resp = requests.get(url, params=params, headers=_EM_HEADERS, timeout=3)
             d = resp.json().get("data") or {}
             raw = _safe_float(d.get("f43"))
             if raw and raw > 0:
@@ -152,7 +152,7 @@ def _usdcny_multi() -> Dict:
     # ④ 新浪财经行情接口直接请求汇率页（不同接口）
     try:
         url = f"http://hq.sinajs.cn/rn={int(time.time())}&list=fx_susdcny"
-        resp = requests.get(url, headers=_SINA_HEADERS, timeout=8)
+        resp = requests.get(url, headers=_SINA_HEADERS, timeout=3)
         resp.encoding = "gbk"
         m = re.search(r'hq_str_fx_susdcny="([^"]*)"', resp.text)
         if m and m.group(1).strip():
@@ -189,7 +189,7 @@ def _tnx_em() -> Dict:
                 "ut": "fa5fd1943c7b386f172d6893dbfba10b",
                 "_": int(time.time() * 1000),
             }
-            r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=8)
+            r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=3)
             d = r.json().get("data") or {}
             raw = _safe_float(d.get("f43"))
             if raw and raw > 0:
@@ -210,7 +210,7 @@ def _tnx_em() -> Dict:
     for qt_sym in ["usFIBT10Y", "usTNX", "usAGGT10YR"]:
         try:
             url = f"http://qt.gtimg.cn/q={qt_sym}"
-            r = requests.get(url, headers=_QT_HEADERS, timeout=6)
+            r = requests.get(url, headers=_QT_HEADERS, timeout=3)
             r.encoding = "gbk"
             match = re.search(r'"([^"]*)"', r.text)
             if match:
@@ -245,7 +245,7 @@ def _tnx_em() -> Dict:
                 "sortColumns": "REPORT_DATE", "sortTypes": "-1",
                 "source": "WEB", "client": "WEB",
             }
-            r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=8)
+            r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=3)
             records = (r.json().get("result") or {}).get("data", [])
             if records:
                 yld = _safe_float(records[0].get("YIELD_10Y"))
@@ -264,7 +264,7 @@ def _tnx_em() -> Dict:
     for sina_sym in ["gb_tbond10", "USTREASURY10Y", "TNX"]:
         try:
             url = f"http://hq.sinajs.cn/rn={int(time.time())}&list={sina_sym}"
-            r = requests.get(url, headers=_SINA_HEADERS, timeout=6)
+            r = requests.get(url, headers=_SINA_HEADERS, timeout=3)
             r.encoding = "gbk"
             match = re.search(rf'hq_str_{re.escape(sina_sym)}="([^"]*)"', r.text)
             if match and match.group(1).strip():
@@ -298,7 +298,7 @@ def _sina_quote(symbol: str) -> Dict:
     try:
         # 用 http:// 而非 https://，避免国内 SSL 握手失败
         url = f"http://hq.sinajs.cn/rn={int(time.time())}&list={sina_sym}"
-        r = requests.get(url, headers=_SINA_HEADERS, timeout=8)
+        r = requests.get(url, headers=_SINA_HEADERS, timeout=3)
         r.encoding = "gbk"
         text = r.text
 
@@ -370,7 +370,7 @@ def _tencent_quote(symbol: str) -> Dict:
         return {"symbol": symbol, "price": None, "source": "qt_no_map"}
     try:
         url = f"https://qt.gtimg.cn/q={qt_sym}"
-        r = requests.get(url, headers=_QT_HEADERS, timeout=8)
+        r = requests.get(url, headers=_QT_HEADERS, timeout=3)
         r.encoding = "gbk"
         text = r.text
 
@@ -459,7 +459,7 @@ def _sina_batch(sina_syms: List[str]) -> Dict:
         syms_str = ",".join(sina_syms)
         # 用 http:// 而非 https://，避免国内 SSL 握手失败
         url = f"http://hq.sinajs.cn/rn={int(time.time())}&list={syms_str}"
-        r = requests.get(url, headers=_SINA_HEADERS, timeout=12)
+        r = requests.get(url, headers=_SINA_HEADERS, timeout=3)
         r.encoding = "gbk"
         text = r.text
 
@@ -553,7 +553,7 @@ def _fund_gz(fund_code: str) -> Dict:
         r = requests.get(
             url,
             headers={**_EM_HEADERS, "Referer": "https://fund.eastmoney.com/"},
-            timeout=8,
+            timeout=3,
         )
         text = r.text.strip()
         match = re.search(r'jsonpgz\((\{.*?\})\)', text)
@@ -587,7 +587,7 @@ def _fund_em_mobile(fund_code: str) -> Dict:
             "deviceid": "550e8400e29b41d4a716446655440000", "pageIndex": 1,
             "pageSize": 1, "fundCode": fund_code,
         }
-        r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=8)
+        r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=3)
         data = r.json()
         items = data.get("Datas", [])
         if not items:
@@ -640,7 +640,7 @@ def _fund_history_main(fund_code: str, page_size: int) -> pd.DataFrame:
             "Referer": f"https://fundf10.eastmoney.com/jjjz_{fund_code}.html",
             "Host": "api.fund.eastmoney.com",
         }
-        r = requests.get(url, params=params, headers=headers, timeout=10)
+        r = requests.get(url, params=params, headers=headers, timeout=3)
         if r.status_code != 200:
             return pd.DataFrame()
         data = r.json()
@@ -674,7 +674,7 @@ def _fund_history_mobile(fund_code: str, page_size: int) -> pd.DataFrame:
             "pageIndex": 1, "pageSize": page_size,
             "fundCode": fund_code,
         }
-        r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=10)
+        r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=3)
         data = r.json()
         items = data.get("Datas", [])
         if not items:
@@ -883,7 +883,7 @@ def _nb_push2(days: int) -> List[Dict]:
             "klt": "101", "lmt": days,
             "_": int(time.time() * 1000),
         }
-        r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=8)
+        r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=3)
         data = r.json()
         inner = data.get("data", {}) or {}
 
@@ -928,7 +928,7 @@ def _nb_datacenter(days: int) -> List[Dict]:
                 "sortColumns": "TRADE_DATE", "sortTypes": "-1",
                 "source": "WEB", "client": "WEB",
             }
-            r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=10)
+            r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=3)
             data = r.json()
             records = (data.get("result") or {}).get("data", [])
             result = []
@@ -955,7 +955,7 @@ def _nb_datacenter(days: int) -> List[Dict]:
             "ut": "b2884a393a59ad64002292a3e90d46a5",
             "_": int(time.time() * 1000),
         }
-        r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=8)
+        r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=3)
         inner = (r.json().get("data") or {})
         # 取今日实时累计（如果有）
         for key in ["s2nDate", "n2sDate", "s2n", "n2s"]:
@@ -1028,7 +1028,7 @@ def _pmi_datacenter() -> Dict:
                 "sortColumns": "REPORT_DATE", "sortTypes": "-1",
                 "source": "WEB", "client": "WEB",
             }
-            r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=10)
+            r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=3)
             data = r.json()
             records = (data.get("result") or {}).get("data", [])
             if records:
@@ -1072,7 +1072,7 @@ def _pmi_nbs() -> Dict:
             "dfwds": '[{"wdcode":"zb","valuecode":"A01040100"}]',
             "k1": str(int(time.time() * 1000)),
         }
-        r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=8)
+        r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=3)
         data = r.json()
         rows = data.get("returndata", {}).get("datanodes", [])
         if rows:
@@ -1095,7 +1095,7 @@ def get_cn_bond_yield() -> Dict:
     for bond_code in ["s_sh010107", "s_sh019521", "s_sh019666"]:
         try:
             url = f"http://hq.sinajs.cn/rn={int(time.time())}&list={bond_code}"
-            r = requests.get(url, headers=_SINA_HEADERS, timeout=8)
+            r = requests.get(url, headers=_SINA_HEADERS, timeout=3)
             r.encoding = "gbk"
             text = r.text
             match = re.search(rf'hq_str_{bond_code}="([^"]*)"', text)
@@ -1119,7 +1119,7 @@ def get_cn_bond_yield() -> Dict:
                 "ut": "fa5fd1943c7b386f172d6893dbfba10b",
                 "_": int(time.time() * 1000),
             }
-            r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=8)
+            r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=3)
             d = r.json().get("data") or {}
             raw = _safe_float(d.get("f43"))
             if raw and raw > 0:
@@ -1145,7 +1145,7 @@ def get_cn_bond_yield() -> Dict:
                 "sortColumns": "TRADE_DATE", "sortTypes": "-1",
                 "source": "WEB", "client": "WEB",
             }
-            r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=8)
+            r = requests.get(url, params=params, headers=_EM_HEADERS, timeout=3)
             records = (r.json().get("result") or {}).get("data", [])
             if records:
                 yld = _safe_float(records[0].get(yld_col))

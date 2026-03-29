@@ -24,6 +24,7 @@ import logging
 import datetime
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field, asdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from engine.factor_model import (
     REGIMES,
@@ -755,12 +756,11 @@ def analyze_all_funds(
     # 共享 Regime 检测
     regime_name, regime_cfg = detect_regime(market_data)
 
-    reports = []
-    for fund in funds_config:
+    def _analyze_one(fund):
         code = fund["code"]
         tech = tech_data_map.get(code, {})
         try:
-            report = analyze_fund_complete(
+            return analyze_fund_complete(
                 fund_cfg=fund,
                 market_data=market_data,
                 tech_data=tech,
@@ -769,7 +769,6 @@ def analyze_all_funds(
                 regime_cfg=regime_cfg,
                 run_fundamental=run_fundamental,
             )
-            reports.append(report)
         except Exception as e:
             logger.error(f"分析基金 {code} 失败: {e}")
             fallback = FundAnalysisReport()
@@ -777,14 +776,24 @@ def analyze_all_funds(
             fallback.fund_name = fund["name"]
             fallback.fund_short = fund.get("short", fund["name"])
             fallback.sector = fund.get("sector", "")
-            fallback.sector_icon = fund.get("sector_icon", "📊")
             fallback.regime_name = regime_name
+            fallback.regime_icon = regime_cfg.get("icon", "🌧️")
+            fallback.d_score = 0.0
             fallback.recommendation = "WAIT"
-            fallback.rec_label = "分析异常，暂缓"
-            fallback.rec_emoji = "⚠️"
-            fallback.commentary = f"分析过程出现异常: {str(e)[:100]}"
-            fallback.generated_at = datetime.datetime.now().isoformat()
-            reports.append(fallback)
+            fallback.rec_label = "数据异常，观望"
+            fallback.rec_emoji = "⏸️"
+            fallback.confidence = 1
+            fallback.confidence_stars = "★☆☆☆☆"
+            fallback.commentary = f"{fund.get('short', fund['name'])}数据获取异常，建议观望。"
+            fallback.risk_alerts = ["数据获取异常，建议人工确认"]
+            return fallback
+
+    # 使用线程池并行分析所有基金（IO密集型，线程数=基金数）
+    reports = []
+    with ThreadPoolExecutor(max_workers=min(len(funds_config), 8)) as executor:
+        futures = {executor.submit(_analyze_one, f): f for f in funds_config}
+        for future in as_completed(futures):
+            reports.append(future.result())
 
     # 排序：可操作的优先，D-score 高的靠前
     priority = {

@@ -2085,10 +2085,14 @@ def _run_unified_analysis():
     # 加载市场数据
     market_data = load_market_snapshot()
 
-    # 构建技术指标 map
+    # 构建技术指标 map（并行获取）
+    from concurrent.futures import ThreadPoolExecutor
     tech_map = {}
-    for f in FUNDS:
-        tech_map[f["code"]] = load_technical(f["code"])
+    def _load_tech(f):
+        return f["code"], load_technical(f["code"])
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        for code, data in ex.map(lambda f: _load_tech(f), FUNDS):
+            tech_map[code] = data
 
     # 构建 portfolio 上下文
     current_total = sum(f["current_value"] for f in FUNDS)
