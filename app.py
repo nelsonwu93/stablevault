@@ -2080,8 +2080,13 @@ def render_history_tab():
 # ══════════════════════════════════════════════
 
 @st.cache_data(ttl=900)
-def _run_unified_analysis():
-    """运行统一决策引擎，返回 (reports, summary, market_data, regime_name, regime_cfg)"""
+def _run_unified_analysis(run_fundamental: bool = False):
+    """运行统一决策引擎，返回 (reports, summary, market_data, regime_name, regime_cfg)
+
+    两阶段加载策略：
+      Phase 1 (run_fundamental=False): 快速加载，仅宏观+行业+技术面，<10秒
+      Phase 2 (run_fundamental=True):  完整分析，含基本面API调用，约30-60秒
+    """
     # 加载市场数据
     market_data = load_market_snapshot()
 
@@ -2104,17 +2109,14 @@ def _run_unified_analysis():
         "funds": FUNDS,
     }
 
-    # fetch_market_snapshot 已返回 {"global": {...}, "china": {...}, "northbound": {...}}
-    # 直接使用，无需重构
     fmt_data = market_data
 
-    # 运行统一分析（首次加载跳过耗时的基本面分析，避免卡住）
     reports = analyze_all_funds(
         funds_config=FUNDS,
         market_data=fmt_data,
         tech_data_map=tech_map,
         portfolio=portfolio,
-        run_fundamental=True,
+        run_fundamental=run_fundamental,
     )
 
     summary = summarize_portfolio_status(reports)
@@ -2231,12 +2233,19 @@ def _render_nav_sidebar(regime_name="放缓期", regime_cfg=None):
         with col_a:
             if st.button("🔄 刷新", use_container_width=True, help="清除缓存并刷新"):
                 st.cache_data.clear()
+                st.session_state.pop("_full_analysis", None)
                 if "all_fund_analysis" in st.session_state:
                     del st.session_state["all_fund_analysis"]
                 st.rerun()
         with col_b:
-            if st.button("🤖 分析", use_container_width=True, help="运行完整分析"):
-                st.session_state["run_full_analysis"] = True
+            is_full = st.session_state.get("_full_analysis", False)
+            btn_label = "✅ 已加载" if is_full else "🧬 基本面"
+            if st.button(btn_label, use_container_width=True,
+                         help="加载基本面数据（含持仓/经理/风格分析）",
+                         disabled=is_full):
+                st.cache_data.clear()
+                st.session_state["_full_analysis"] = True
+                st.rerun()
 
         st.caption("⚠️ 仅供参考，非投资建议。")
 
@@ -2306,9 +2315,15 @@ def _check_login():
 # ══════════════════════════════════════════════
 
 def main():
-    # ── 运行统一分析（缓存15分钟）──
-    with st.spinner("正在运行四维决策分析..."):
-        reports, summary, market_data, regime_name, regime_cfg = _run_unified_analysis()
+    # ── 两阶段加载：先快速显示(无基本面)，用户可手动触发完整分析 ──
+    use_fundamental = st.session_state.get("_full_analysis", False)
+
+    if use_fundamental:
+        with st.spinner("正在运行完整四维决策分析（含基本面）...预计30-60秒"):
+            reports, summary, market_data, regime_name, regime_cfg = _run_unified_analysis(run_fundamental=True)
+    else:
+        with st.spinner("正在加载决策面板..."):
+            reports, summary, market_data, regime_name, regime_cfg = _run_unified_analysis(run_fundamental=False)
 
     # ── 渲染侧边栏导航 ──
     _render_nav_sidebar(regime_name=regime_name, regime_cfg=regime_cfg)
