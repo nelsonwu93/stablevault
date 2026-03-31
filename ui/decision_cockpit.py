@@ -431,7 +431,7 @@ def _build_cockpit_html(data: Dict) -> str:
     rc = data["regime_color"]
 
     html = f'''<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><style>
-:root{{--bg:transparent;--bg-base:#0D0E12;--bg-card:#1C1D22;--bg-elevated:#22242A;--border:#2C2D35;--brand:#A8E6CF;--up:#4CAF50;--down:#FF6B6B;--warn:#F59E0B;--info:#60A5FA;--text-primary:#FFFFFF;--text-secondary:#A0A0A0;--text-muted:#6B7280;--text-dim:#4B5563;--score-m:#60A5FA;--score-s:#A78BFA;--score-t:#F472B6;--score-f:#34D399;}}
+:root{{--bg:transparent;--bg-base:#0D0E12;--bg-card:#1C1D22;--bg-elevated:#22242A;--border:#2C2D35;--brand:#A8E6CF;--up:#FF6B6B;--down:#4CAF50;--warn:#F59E0B;--info:#60A5FA;--text-primary:#FFFFFF;--text-secondary:#A0A0A0;--text-muted:#6B7280;--text-dim:#4B5563;--score-m:#60A5FA;--score-s:#A78BFA;--score-t:#F472B6;--score-f:#34D399;}}
 *{{margin:0;padding:0;box-sizing:border-box;}}
 body{{background:var(--bg);font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:var(--text-primary);overflow-x:hidden;}}
 
@@ -568,7 +568,7 @@ body{{background:var(--bg);font-family:'Inter',-apple-system,BlinkMacSystemFont,
 <script>
 const FUNDS = {funds_json};
 
-function sc(v){{return v>=.3?'#4CAF50':v>=0?'#60A5FA':v>=-.3?'#F59E0B':'#FF6B6B';}}
+function sc(v){{return v>=.3?'#FF6B6B':v>=0?'#60A5FA':v>=-.3?'#F59E0B':'#4CAF50';}}
 function bp(v){{return Math.max(5,Math.min(95,(v+2)/4*100));}}
 
 let activeIdx=-1, activeDim=null, activeFactor=-1, showScoring=false;

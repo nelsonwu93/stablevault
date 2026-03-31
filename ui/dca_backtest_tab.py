@@ -264,7 +264,7 @@ def _render_execution_signals(df, monthly_amount, selected_fund, results, best):
         border = UP if is_best_strategy else sig["color"]
         best_tag = f' <span style="background:{UP}; color:#000; padding:1px 6px; border-radius:4px; font-size:0.65em; font-weight:700; vertical-align:middle;">推荐策略</span>' if is_best_strategy else ""
 
-        action_bg = {"买入": UP_DIM, "加倍买入": f"rgba(76,175,80,0.2)", "减半买入": WARN_DIM, "暂停": DOWN_DIM, "止盈赎回": f"rgba(245,158,11,0.2)"}
+        action_bg = {"买入": UP_DIM, "加倍买入": f"rgba(255,107,107,0.2)", "减半买入": WARN_DIM, "暂停": DOWN_DIM, "止盈赎回": f"rgba(245,158,11,0.2)"}
         bg = action_bg.get(sig["action"], "rgba(255,255,255,0.05)")
 
         st.markdown(

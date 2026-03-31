@@ -814,7 +814,7 @@ def color_return(val):
     from ui.design_tokens import DOWN, UP, TEXT_SECONDARY
     if val is None:
         return f"color:{TEXT_SECONDARY}"
-    return f"color:{DOWN}" if val > 0 else f"color:{UP}" if val < 0 else f"color:{TEXT_SECONDARY}"
+    return f"color:{UP}" if val > 0 else f"color:{DOWN}" if val < 0 else f"color:{TEXT_SECONDARY}"
 
 def format_amount(val):
     if val is None:

@@ -10,7 +10,7 @@ Layout (3 layers):
   Layer 3 — D-Score → Recommendation
 
 Connections are drawn as SVG bezier curves with:
-  - Color: green (positive) / red (negative) / amber (neutral)
+  - Color: red (positive) / green (negative) / amber (neutral) — 中国习惯：红涨绿跌
   - Thickness: proportional to |score|
   - Hover: highlights the full influence path
 """
@@ -484,8 +484,8 @@ function scoreColor(v) {{
   return '{WARN}';
 }}
 function scoreBg(v) {{
-  if (v > 0.1) return 'rgba(76,175,80,0.12)';
-  if (v < -0.1) return 'rgba(255,107,107,0.12)';
+  if (v > 0.1) return 'rgba(255,107,107,0.12)';
+  if (v < -0.1) return 'rgba(76,175,80,0.12)';
   return 'rgba(245,158,11,0.10)';
 }}
 function hexToRgba(hex, a) {{
@@ -559,7 +559,7 @@ D.dimensions.forEach((dim, di) => {{
       <span>权重 ${{dim.weightPct}}%</span>
       <span>${{dim.label}}</span>
     </div>
-    <div class="dim-contribution" style="color:${{contribColor}};background:${{dim.contribution >= 0 ? 'rgba(76,175,80,0.1)' : 'rgba(255,107,107,0.1)'}}">
+    <div class="dim-contribution" style="color:${{contribColor}};background:${{dim.contribution >= 0 ? 'rgba(255,107,107,0.1)' : 'rgba(76,175,80,0.1)'}}">
       贡献 ${{dim.contribution > 0 ? '+' : ''}}${{dim.contribution.toFixed(3)}}
     </div>
   `;
@@ -582,7 +582,7 @@ D.dimensions.forEach((dim, di) => {{
 // ─── Build result column ───
 const resultCol = document.getElementById('resultCol');
 const dColor = D.dColor;
-const recBg = D.dScore >= 0.4 ? 'rgba(76,175,80,0.12)' : D.dScore >= -0.2 ? 'rgba(245,158,11,0.10)' : 'rgba(255,107,107,0.12)';
+const recBg = D.dScore >= 0.4 ? 'rgba(255,107,107,0.12)' : D.dScore >= -0.2 ? 'rgba(245,158,11,0.10)' : 'rgba(76,175,80,0.12)';
 const recBorder = D.dScore >= 0.4 ? '{UP}' : D.dScore >= -0.2 ? '{WARN}' : '{DOWN}';
 
 resultCol.innerHTML = `

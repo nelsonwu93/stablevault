@@ -27,14 +27,14 @@ BRAND = "#A8E6CF"         # Primary mint green — nav active, highlights
 BRAND_DIM = "rgba(168,230,207,0.10)"   # Brand tinted backgrounds
 BRAND_GLOW = "rgba(168,230,207,0.25)"  # Brand hover / focus ring
 
-# Semantic — directional
-UP = "#4CAF50"            # Positive / buy / profit
-UP_DIM = "rgba(76,175,80,0.10)"
-UP_GLOW = "rgba(76,175,80,0.25)"
+# Semantic — directional (中国习惯：红涨绿跌)
+UP = "#FF6B6B"            # Positive / buy / profit — 红色
+UP_DIM = "rgba(255,107,107,0.10)"
+UP_GLOW = "rgba(255,107,107,0.25)"
 
-DOWN = "#FF6B6B"          # Negative / sell / loss
-DOWN_DIM = "rgba(255,107,107,0.10)"
-DOWN_GLOW = "rgba(255,107,107,0.25)"
+DOWN = "#4CAF50"          # Negative / sell / loss — 绿色
+DOWN_DIM = "rgba(76,175,80,0.10)"
+DOWN_GLOW = "rgba(76,175,80,0.25)"
 
 WARN = "#F59E0B"          # Caution / hold / wait
 WARN_DIM = "rgba(245,158,11,0.10)"
